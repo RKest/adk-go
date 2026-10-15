@@ -387,8 +387,9 @@ func setupLoggerProvider(t *testing.T) *inMemoryLogExporter {
 	return testLogExporter
 }
 
-// The Gemini model appends to the request while handling it.
-func TestInferenceEventDescribesTheRequestTheSpanDoes(t *testing.T) {
+// The Gemini model appends to the request while handling it. The span records
+// the request as sent, and the event the request as the model left it.
+func TestInferenceEventDescribesTheRequestAsTheModelLeftIt(t *testing.T) {
 	t.Cleanup(telemetry.ApplyEnv)
 	t.Setenv("ADK_TELEMETRY_SCHEMA_VERSION_OPT_IN", "otel_semconv_1_44")
 	t.Setenv("OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT", "SPAN_AND_EVENT")
@@ -431,7 +432,7 @@ func TestInferenceEventDescribesTheRequestTheSpanDoes(t *testing.T) {
 		}
 		return true
 	})
-	if eventMessages != 1 {
-		t.Errorf("event gen_ai.input.messages holds %d messages, want 1", eventMessages)
+	if eventMessages != 2 {
+		t.Errorf("event gen_ai.input.messages holds %d messages, want 2", eventMessages)
 	}
 }

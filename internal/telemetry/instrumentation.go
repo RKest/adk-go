@@ -52,12 +52,10 @@ func InstrumentInvocation(ctx context.Context, root AgentLike, sessionID string,
 // The span ends before the final response or error is yielded.
 func InstrumentGenerateContent[T any](ctx context.Context, params GenerateContentParams, response func(T) (*model.LLMResponse, string), call func(context.Context) iter.Seq2[T, error]) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
-		// Copied, since a model may modify the request.
-		params := params
-		req := *params.Request
-		params.Request = &req
 		ctx, span := startGenerateContentSpan(ctx, params)
 		logRequest(ctx, params.Request, params.Backend)
+		var details operationDetails
+		details.noteLLMRequest(params.Request)
 
 		var result generateContentResult
 		ended := false
@@ -67,7 +65,8 @@ func InstrumentGenerateContent[T any](ctx context.Context, params GenerateConten
 			}
 			ended = true
 			traceGenerateContentResult(span, result)
-			logInferenceOperationDetails(ctx, params, result)
+			details.noteLLMRequest(params.Request)
+			details.emit(ctx, params, result)
 			span.End()
 		}
 		defer end()
