@@ -177,7 +177,7 @@ type TraceCompactionResultParams struct {
 // summarizer that spent a model call and got nothing usable back reported no
 // spend at all.
 func TraceCompactionResult(span trace.Span, params TraceCompactionResultParams) {
-	recordErrorAndStatus(span, params.Error)
+	RecordError(span, params.Error)
 	if params.Declined && params.DiscardReason == "" {
 		span.SetAttributes(genAICompactionDeclined.String("the summarizer returned no content"))
 	}
