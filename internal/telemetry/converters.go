@@ -48,8 +48,11 @@ func toLogValue(v any) attribute.Value {
 		if i, err := val.Int64(); err == nil {
 			return attribute.Int64Value(i)
 		}
-		f, _ := val.Float64()
-		return attribute.Float64Value(f)
+		if f, err := val.Float64(); err == nil {
+			return attribute.Float64Value(f)
+		}
+		// Out of float64 range: keep the exact JSON text, as the legacy schema does.
+		return attribute.StringValue(val.String())
 	case []any:
 		values := make([]attribute.Value, 0, len(val))
 		for _, item := range val {

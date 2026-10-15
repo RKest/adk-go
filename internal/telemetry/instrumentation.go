@@ -23,6 +23,8 @@ import (
 )
 
 // InstrumentInvocation wraps a runner invocation in an invoke_workflow span.
+// Under the legacy schema, for a workflow root (which opens that span itself),
+// and inside an existing invoke_workflow, run gets ctx unchanged.
 func InstrumentInvocation(ctx context.Context, root AgentLike, sessionID string, run func(context.Context) iter.Seq2[*session.Event, error]) iter.Seq2[*session.Event, error] {
 	// Unlike ADK Python, a nested invocation (e.g. agent as tool) gets no span: the spec omits implementation details.
 	if useLegacySchema() || isWorkflowAgent(root) || ctx.Value(workflowScopeKey{}) != nil {
