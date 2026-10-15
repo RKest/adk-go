@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"reflect"
 	"strings"
 	"sync"
 
@@ -185,57 +184,6 @@ func logResponse(ctx context.Context, resp *model.LLMResponse, backend genai.Bac
 		record.AddAttributes(*genAISystem)
 	}
 
-	otelLogger().Emit(ctx, record)
-}
-
-// operationDetails is the gen_ai.client.inference.operation.details event of
-// one model request. The zero value is ready to use.
-type operationDetails struct {
-	request      []contentAttr
-	requestAttrs []attribute.KeyValue
-}
-
-// noteLLMRequest records the messages of req, when the event captures them.
-// A model may edit the request it is given, so call it again once the call has
-// ended: the event then describes the request as the model left it. Messages
-// that did not change are not encoded again.
-func (d *operationDetails) noteLLMRequest(req *model.LLMRequest) {
-	if useLegacySchema() || !getGenAICaptureMessageContent() {
-		return
-	}
-	content := requestContent(req)
-	if reflect.DeepEqual(content, d.request) {
-		return
-	}
-	d.request, d.requestAttrs = content, eventContentAttributes(content)
-}
-
-// emit emits the event, with messages only when capture is on.
-func (d *operationDetails) emit(ctx context.Context, params GenerateContentParams, result generateContentResult) {
-	if useLegacySchema() {
-		return
-	}
-	attrs := []attribute.KeyValue{
-		semconv.GenAIOperationNameGenerateContent,
-		semconv.GenAIRequestModel(params.ModelName),
-		gcpVertexAgentInvocationID.String(params.InvocationID),
-	}
-	if provider, ok := providerName(params.ModelName, params.Backend); ok {
-		attrs = append(attrs, provider)
-	}
-	if result.Error != nil {
-		attrs = append(attrs, errorType(result.Error))
-	}
-	attrs = append(attrs, generateContentResultAttributes(result)...)
-	if getGenAICaptureMessageContent() {
-		attrs = append(attrs, d.requestAttrs...)
-		attrs = append(attrs, eventContentAttributes(responseContent(result.Response, result.Error))...)
-	}
-	record := log.Record{}
-	record.SetEventName(inferenceOperationDetailsEventName)
-	// The spec makes this event opt-in; DEBUG lets consumers filter it out.
-	record.SetSeverity(log.SeverityDebug)
-	record.AddAttributes(attrs...)
 	otelLogger().Emit(ctx, record)
 }
 
