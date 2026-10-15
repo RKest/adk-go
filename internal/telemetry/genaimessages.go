@@ -18,10 +18,11 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"log"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/genai"
 
@@ -286,7 +287,8 @@ func responseContent(resp *model.LLMResponse, err error) []contentAttr {
 	}}}}
 }
 
-// spanContentAttributes drops, with a warning, attributes too large to export.
+// spanContentAttributes drops attributes too large to export, reporting each
+// to the OpenTelemetry error handler.
 func spanContentAttributes(content []contentAttr) []attribute.KeyValue {
 	legacy := useLegacySchema()
 	var attrs []attribute.KeyValue
@@ -297,7 +299,7 @@ func spanContentAttributes(content []contentAttr) []attribute.KeyValue {
 			continue
 		}
 		if len(encoded) > maxContentAttributeBytes {
-			log.Printf("adk: telemetry: leaving %s off the span: its JSON encoding is %d bytes, over the %d-byte limit", c.key, len(encoded), maxContentAttributeBytes)
+			otel.Handle(fmt.Errorf("adk: telemetry: leaving %s off the span: its JSON encoding is %d bytes, over the %d-byte limit", c.key, len(encoded), maxContentAttributeBytes))
 			continue
 		}
 		if legacy {
