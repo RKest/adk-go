@@ -119,8 +119,8 @@ func startGenerateContentSpan(ctx context.Context, params GenerateContentParams)
 	// conventions list the attributes worth having at span creation for
 	// sampling, and content is not among them. Still before the model call, so
 	// the prompt is on the span even when the call fails and no response is
-	// ever traced.
-	if span.IsRecording() && captureContentOnSpans() {
+	// ever traced. The experimental schema records it through [operationDetails].
+	if useLegacySchema() && span.IsRecording() && captureContentOnSpans() {
 		span.SetAttributes(spanContentAttributes(requestContent(params.Request))...)
 	}
 	return spanCtx, span

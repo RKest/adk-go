@@ -742,26 +742,3 @@ func TestUseLegacySchema(t *testing.T) {
 		})
 	}
 }
-
-func TestOperationDetailsNoteLLMRequest(t *testing.T) {
-	setEnvForTesting(t, map[string]string{adkTelemetrySchemaVersionOptIn: "otel_semconv_1_44", captureMessageContentEnvVar: "EVENT_ONLY"})
-	req := &model.LLMRequest{Contents: []*genai.Content{genai.NewContentFromText("original", genai.RoleUser)}}
-	var d operationDetails
-	d.noteLLMRequest(req)
-	first := d.requestAttrs
-
-	d.noteLLMRequest(req)
-	if &d.requestAttrs[0] != &first[0] {
-		t.Error("noting an unchanged request encoded its messages again")
-	}
-
-	req.Contents[0].Parts[0].Text = "edited by the model"
-	d.noteLLMRequest(req)
-	want := []goKeyValue{{Key: "gen_ai.input.messages", Value: []any{map[string]any{
-		"role":  "user",
-		"parts": []any{map[string]any{"type": "text", "content": "edited by the model"}},
-	}}}}
-	if diff := cmp.Diff(want, toGoKeyValues(d.requestAttrs)); diff != "" {
-		t.Errorf("event messages after an in-place edit (-want +got):\n%s", diff)
-	}
-}

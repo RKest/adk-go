@@ -514,6 +514,7 @@ func TestGenerateContentSpan_ContentAttributes(t *testing.T) {
 	_, span := startGenerateContentSpan(t.Context(), GenerateContentParams{
 		ModelName: "test-model", InvocationID: "inv-1", Request: req,
 	})
+	(&operationDetails{span: span}).noteLLMRequest(req)
 	traceGenerateContentResult(span, generateContentResult{
 		Response: &model.LLMResponse{
 			Content:      &genai.Content{Role: genai.RoleModel, Parts: []*genai.Part{{Text: "ok"}}},
@@ -555,6 +556,7 @@ func TestGenerateContentSpan_ErrorStillCarriesThePrompt(t *testing.T) {
 	_, span := startGenerateContentSpan(t.Context(), GenerateContentParams{
 		ModelName: "test-model", Request: req,
 	})
+	(&operationDetails{span: span}).noteLLMRequest(req)
 	traceGenerateContentResult(span, generateContentResult{Error: errTest})
 	span.End()
 
