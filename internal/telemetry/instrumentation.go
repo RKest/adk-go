@@ -34,7 +34,7 @@ func InstrumentInvocation(ctx context.Context, root AgentLike, sessionID string,
 		ctx, span := startInvokeWorkflowSpan(ctx, root.Name(), sessionID)
 		var firstErr error
 		defer func() {
-			recordErrorAndStatus(span, firstErr)
+			RecordError(span, firstErr)
 			span.End()
 		}()
 		for ev, err := range run(ctx) {

@@ -88,7 +88,7 @@ type TraceAgentResultParams struct {
 
 // TraceAgentResult records the result of the agent invocation, including status and error.
 func TraceAgentResult(span trace.Span, params TraceAgentResultParams) {
-	recordErrorAndStatus(span, params.Error)
+	RecordError(span, params.Error)
 }
 
 type GenerateContentParams struct {
@@ -134,7 +134,7 @@ type generateContentResult struct {
 
 // traceGenerateContentResult records the result of the generate_content operation, including token usage and finish reason.
 func traceGenerateContentResult(span trace.Span, params generateContentResult) {
-	recordErrorAndStatus(span, params.Error)
+	RecordError(span, params.Error)
 	span.SetAttributes(generateContentResultAttributes(params)...)
 	if captureContentOnSpans() {
 		span.SetAttributes(spanContentAttributes(responseContent(params.Response, params.Error))...)
@@ -206,7 +206,7 @@ type TraceToolResultParams struct {
 
 // TraceToolResult records the tool execution events.
 func TraceToolResult(span trace.Span, params TraceToolResultParams) {
-	recordErrorAndStatus(span, params.Error)
+	RecordError(span, params.Error)
 
 	attributes := []attribute.KeyValue{
 		semconv.GenAIOperationNameKey.String(executeToolName),
@@ -250,7 +250,9 @@ func TraceToolResult(span trace.Span, params TraceToolResultParams) {
 	span.SetAttributes(attributes...)
 }
 
-func recordErrorAndStatus(span trace.Span, err error) {
+// RecordError marks span failed with err, and in the experimental schema adds
+// error.type. A nil err records nothing. Every span set to ERROR goes through it.
+func RecordError(span trace.Span, err error) {
 	if err == nil {
 		return
 	}
@@ -306,7 +308,7 @@ func StartTrace(ctx context.Context, traceName string) (context.Context, trace.S
 
 // TraceMergedToolCallsResult records the result of the merged tool calls, including status and tool execution events.
 func TraceMergedToolCallsResult(span trace.Span, fnResponseEvent *session.Event, err error) {
-	recordErrorAndStatus(span, err)
+	RecordError(span, err)
 	attributes := []attribute.KeyValue{
 		semconv.GenAIOperationNameKey.String(executeToolName),
 		semconv.GenAIToolNameKey.String(mergeToolName),
