@@ -38,7 +38,7 @@
               "gen_ai.operation.name": "generate_content",
               "gen_ai.output.messages": [
                 {
-                  "finish_reason": "tool_call",
+                  "finish_reason": "",
                   "parts": [
                     {
                       "arguments": {
@@ -52,9 +52,6 @@
                 }
               ],
               "gen_ai.request.model": "mock",
-              "gen_ai.response.finish_reasons": [
-                "tool_call"
-              ],
               "gen_ai.system_instructions": [
                 {
                   "content": "you are helpful\n\nYou are an agent. Your internal name is \"some_root_agent\". The description about you is \"A sample root agent.\".",
@@ -85,7 +82,7 @@
                   "gen_ai.operation.name": "generate_content",
                   "gen_ai.output.messages": [
                     {
-                      "finish_reason": "tool_call",
+                      "finish_reason": "",
                       "parts": [
                         {
                           "arguments": {
@@ -99,9 +96,6 @@
                     }
                   ],
                   "gen_ai.request.model": "mock",
-                  "gen_ai.response.finish_reasons": [
-                    "tool_call"
-                  ],
                   "gen_ai.system_instructions": [
                     {
                       "content": "you are helpful\n\nYou are an agent. Your internal name is \"some_root_agent\". The description about you is \"A sample root agent.\".",
@@ -172,7 +166,7 @@
               "gen_ai.operation.name": "generate_content",
               "gen_ai.output.messages": [
                 {
-                  "finish_reason": "stop",
+                  "finish_reason": "",
                   "parts": [
                     {
                       "content": "text response",
@@ -183,9 +177,6 @@
                 }
               ],
               "gen_ai.request.model": "mock",
-              "gen_ai.response.finish_reasons": [
-                "stop"
-              ],
               "gen_ai.system_instructions": [
                 {
                   "content": "you are helpful\n\nYou are an agent. Your internal name is \"some_root_agent\". The description about you is \"A sample root agent.\".",
@@ -240,7 +231,7 @@
                   "gen_ai.operation.name": "generate_content",
                   "gen_ai.output.messages": [
                     {
-                      "finish_reason": "stop",
+                      "finish_reason": "",
                       "parts": [
                         {
                           "content": "text response",
@@ -251,9 +242,6 @@
                     }
                   ],
                   "gen_ai.request.model": "mock",
-                  "gen_ai.response.finish_reasons": [
-                    "stop"
-                  ],
                   "gen_ai.system_instructions": [
                     {
                       "content": "you are helpful\n\nYou are an agent. Your internal name is \"some_root_agent\". The description about you is \"A sample root agent.\".",

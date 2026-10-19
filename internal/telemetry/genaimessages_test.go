@@ -357,7 +357,7 @@ func TestResponseContentAttributes(t *testing.T) {
 		Content:      &genai.Content{Role: genai.RoleModel, Parts: []*genai.Part{{Text: "It is rainy."}}},
 		FinishReason: genai.FinishReasonStop,
 	}
-	got, ok := attrJSON(spanContentAttributes(responseContent(resp, nil)), genAIOutputMessages)
+	got, ok := attrJSON(spanContentAttributes(responseContent(generateContentResult{Response: resp})), genAIOutputMessages)
 	if !ok {
 		t.Fatal("gen_ai.output.messages was not set")
 	}
@@ -368,17 +368,18 @@ func TestResponseContentAttributes(t *testing.T) {
 	}
 }
 
-// TestResponseContentAttributes_SkipsStreamingChunks checks that a partial
-// chunk records nothing. Recording one would overwrite the attribute with a
-// fragment of the turn.
-func TestResponseContentAttributes_SkipsStreamingChunks(t *testing.T) {
+// TestResponseContentAttributes_LegacySkipsStreamingChunks checks that a
+// partial chunk records nothing under the legacy schema, which records the
+// final response alone.
+func TestResponseContentAttributes_LegacySkipsStreamingChunks(t *testing.T) {
 	captureContent(t)
+	t.Setenv(adkTelemetrySchemaVersionOptIn, otelSemconv136)
 
 	partial := &model.LLMResponse{
 		Content: &genai.Content{Role: genai.RoleModel, Parts: []*genai.Part{{Text: "It is ra"}}},
 		Partial: true,
 	}
-	if attrs := spanContentAttributes(responseContent(partial, nil)); len(attrs) != 0 {
+	if attrs := spanContentAttributes(responseContent(generateContentResult{Response: partial})); len(attrs) != 0 {
 		t.Errorf("attributes for a partial chunk = %v, want none", attrs)
 	}
 
@@ -386,12 +387,38 @@ func TestResponseContentAttributes_SkipsStreamingChunks(t *testing.T) {
 		Content:      &genai.Content{Role: genai.RoleModel, Parts: []*genai.Part{{Text: "It is rainy."}}},
 		FinishReason: genai.FinishReasonStop,
 	}
-	got, ok := attrJSON(spanContentAttributes(responseContent(settled, nil)), genAIOutputMessages)
+	got, ok := attrJSON(spanContentAttributes(responseContent(generateContentResult{Response: settled})), genAIOutputMessages)
 	if !ok {
 		t.Fatal("gen_ai.output.messages was not set for the settled response")
 	}
 	if !strings.Contains(got, "It is rainy.") {
 		t.Errorf("settled response was not recorded: %s", got)
+	}
+}
+
+// TestResponseContentAttributes_OneMessagePerResponse checks that a streamed
+// turn is every chunk, each finish_reason as the model reported it.
+func TestResponseContentAttributes_OneMessagePerResponse(t *testing.T) {
+	captureContent(t)
+
+	partial := &model.LLMResponse{
+		Content: &genai.Content{Role: genai.RoleModel, Parts: []*genai.Part{{Text: "It is "}}},
+		Partial: true,
+	}
+	last := &model.LLMResponse{
+		Content:      &genai.Content{Role: genai.RoleModel, Parts: []*genai.Part{{Text: "rainy."}}},
+		FinishReason: genai.FinishReasonStop,
+		Partial:      true,
+	}
+	result := generateContentResult{Response: last, Responses: []*model.LLMResponse{partial, last}}
+	got, ok := attrJSON(spanContentAttributes(responseContent(result)), genAIOutputMessages)
+	if !ok {
+		t.Fatal("gen_ai.output.messages was not set")
+	}
+	want := `[{"role":"assistant","parts":[{"type":"text","content":"It is "}],"finish_reason":""},` +
+		`{"role":"assistant","parts":[{"type":"text","content":"rainy."}],"finish_reason":"stop"}]`
+	if diff := jsonDiff(t, want, got); diff != "" {
+		t.Errorf("gen_ai.output.messages mismatch (-want +got):\n%s", diff)
 	}
 }
 
@@ -402,7 +429,7 @@ func TestResponseContentAttributes_EmptyContent(t *testing.T) {
 	captureContent(t)
 
 	resp := &model.LLMResponse{FinishReason: genai.FinishReasonSafety}
-	got, ok := attrJSON(spanContentAttributes(responseContent(resp, nil)), genAIOutputMessages)
+	got, ok := attrJSON(spanContentAttributes(responseContent(generateContentResult{Response: resp})), genAIOutputMessages)
 	if !ok {
 		t.Fatal("gen_ai.output.messages was not set")
 	}
@@ -883,7 +910,8 @@ func TestContentValueMatchesJSON(t *testing.T) {
 		{"unserializable payload", toolPayload(map[string]any{"f": func() {}})},
 		{"messages", messageList{
 			{Role: roleUser, Parts: partList{textPart{Type: partTypeText, Content: "q"}}},
-			{Role: roleAssistant, Parts: partList{}, FinishReason: finishStop},
+			{Role: roleAssistant, Parts: partList{}, FinishReason: new(finishStop)},
+			{Role: roleAssistant, Parts: partList{}, FinishReason: new("")},
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -907,6 +935,8 @@ func filled[T any]() T {
 		switch f.Interface().(type) {
 		case string:
 			f.SetString(rv.Type().Field(i).Name)
+		case *string:
+			f.Set(reflect.ValueOf(new(rv.Type().Field(i).Name)))
 		case bool:
 			f.SetBool(true)
 		case rawJSON:

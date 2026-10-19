@@ -99,6 +99,12 @@ type GenerateContentParams struct {
 	// Request is required.
 	Request *model.LLMRequest
 	Backend genai.Backend
+	// Stream reports whether the model was asked to stream. A call that is not
+	// streamed ends at its one response, whether or not it reports a finish
+	// reason. Unlike adk-python, which waits for the generator to finish, so
+	// the tool a model without finish reasons asks for is not traced inside
+	// the inference.
+	Stream bool
 }
 
 // startGenerateContentSpan starts a new semconv generate_content span.
@@ -127,9 +133,35 @@ func startGenerateContentSpan(ctx context.Context, params GenerateContentParams)
 }
 
 type generateContentResult struct {
+	// Response is the latest response of the call.
 	Response *model.LLMResponse
 	EventID  string
 	Error    error
+	// Responses are every response of the call, in order, ending with
+	// Response. Nil means Response alone. The legacy schema reads only Response.
+	Responses []*model.LLMResponse
+}
+
+func (r generateContentResult) responses() []*model.LLMResponse {
+	if r.Responses == nil && r.Response != nil {
+		return []*model.LLMResponse{r.Response}
+	}
+	return r.Responses
+}
+
+// usage is the token usage of the latest response that reports any, as a
+// stream may repeat it on every chunk or put it on one.
+func (r generateContentResult) usage() *genai.GenerateContentResponseUsageMetadata {
+	if useLegacySchema() {
+		return r.Response.UsageMetadata
+	}
+	responses := r.responses()
+	for i := len(responses) - 1; i >= 0; i-- {
+		if u := responses[i].UsageMetadata; u != nil {
+			return u
+		}
+	}
+	return nil
 }
 
 // traceGenerateContentResult records the result of the generate_content operation, including token usage and finish reason.
@@ -137,7 +169,7 @@ func traceGenerateContentResult(span trace.Span, params generateContentResult) {
 	RecordError(span, params.Error)
 	span.SetAttributes(generateContentResultAttributes(params)...)
 	if captureContentOnSpans() {
-		span.SetAttributes(spanContentAttributes(responseContent(params.Response, params.Error))...)
+		span.SetAttributes(spanContentAttributes(responseContent(params))...)
 	}
 }
 
@@ -147,13 +179,21 @@ func generateContentResultAttributes(params generateContentResult) []attribute.K
 	// Record a finish reason when the call produced a response or an error; a
 	// nil response and nil error means there is no result to describe.
 	if params.Response != nil || params.Error != nil {
-		attrs = append(attrs, semconv.GenAIResponseFinishReasons(schemaFinishReason(params.Response, params.Error)))
+		finishReason := schemaFinishReason(params.Response, params.Error)
+		if !useLegacySchema() {
+			// Omitted rather than guessed when the model reported none, as in
+			// adk-python's _to_finish_reason.
+			finishReason = reportedFinishReason(params.Response, params.Error)
+		}
+		if finishReason != "" {
+			attrs = append(attrs, semconv.GenAIResponseFinishReasons(finishReason))
+		}
 	}
 	if params.Response == nil {
 		return attrs
 	}
 	attrs = append(attrs, gcpVertexAgentEventID.String(params.EventID))
-	if u := params.Response.UsageMetadata; u != nil {
+	if u := params.usage(); u != nil {
 		attrs = append(attrs,
 			// Tool-use prompt tokens are reported separately from PromptTokenCount and
 			// are billed as input, so they belong in gen_ai.usage.input_tokens. This

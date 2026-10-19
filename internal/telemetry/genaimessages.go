@@ -98,7 +98,7 @@ func (l messageList) value() attribute.Value {
 type chatMessage struct {
 	Role         string   `json:"role"`
 	Parts        partList `json:"parts"`
-	FinishReason string   `json:"finish_reason,omitempty"`
+	FinishReason *string  `json:"finish_reason,omitempty"`
 }
 
 func (m chatMessage) value() attribute.Value {
@@ -106,8 +106,8 @@ func (m chatMessage) value() attribute.Value {
 		str("role", m.Role),
 		{Key: "parts", Value: m.Parts.value()},
 	}
-	if m.FinishReason != "" {
-		kvs = append(kvs, str("finish_reason", m.FinishReason))
+	if m.FinishReason != nil {
+		kvs = append(kvs, str("finish_reason", *m.FinishReason))
 	}
 	return attribute.MapValue(kvs...)
 }
@@ -267,24 +267,37 @@ func requestContent(req *model.LLMRequest) []contentAttr {
 	return content
 }
 
-// responseContent skips partial responses, so a stream records its final answer.
-func responseContent(resp *model.LLMResponse, err error) []contentAttr {
-	if resp == nil || resp.Partial {
+// responseContent is the output of a call, which callers gate on content
+// capture. The legacy schema records the final response and skips partial
+// ones. Otherwise every response is one message, as adk-python and
+// opentelemetry-instrumentation-google-genai report a stream.
+func responseContent(r generateContentResult) []contentAttr {
+	if useLegacySchema() {
+		if r.Response == nil || r.Response.Partial {
+			return nil
+		}
+		return []contentAttr{{genAIOutputMessages, messageList{outputMessage(r.Response, schemaFinishReason(r.Response, r.Error))}}}
+	}
+	var msgs messageList
+	for _, resp := range r.responses() {
+		msgs = append(msgs, outputMessage(resp, reportedFinishReason(resp, nil)))
+	}
+	if len(msgs) == 0 {
 		return nil
 	}
-	// A candidate suppressed by a safety filter has a finish reason and no
-	// parts, and is the case an operator most wants on the span, so the message
-	// is recorded with an empty parts list. ADK carries a single candidate, so
-	// there is always exactly one output message.
+	return []contentAttr{{genAIOutputMessages, msgs}}
+}
+
+// outputMessage is resp as an output message. A candidate suppressed by a
+// safety filter has a finish reason and no parts, and is the case an operator
+// most wants on the span, so the message is recorded with an empty parts list.
+// ADK carries a single candidate, so one response is one message.
+func outputMessage(resp *model.LLMResponse, finishReason string) chatMessage {
 	parts := partList{}
 	if resp.Content != nil {
 		parts = semconvParts(resp.Content.Parts)
 	}
-	return []contentAttr{{genAIOutputMessages, messageList{{
-		Role:         roleAssistant,
-		Parts:        parts,
-		FinishReason: schemaFinishReason(resp, err),
-	}}}}
+	return chatMessage{Role: roleAssistant, Parts: parts, FinishReason: &finishReason}
 }
 
 // spanContentAttributes drops attributes too large to export, reporting each
@@ -473,6 +486,17 @@ func schemaRole(c *genai.Content) string {
 	default:
 		return c.Role
 	}
+}
+
+// reportedFinishReason is [schemaFinishReason], or "" when resp reports no
+// reason: mid-stream, or a model that leaves it unset. FINISH_REASON_UNSPECIFIED
+// is the proto3 zero value, so it counts as unset too.
+func reportedFinishReason(resp *model.LLMResponse, err error) string {
+	if err == nil && resp != nil && resp.ErrorCode == "" && !resp.Interrupted &&
+		(resp.FinishReason == "" || resp.FinishReason == genai.FinishReasonUnspecified) {
+		return ""
+	}
+	return schemaFinishReason(resp, err)
 }
 
 // schemaFinishReason maps a response onto the schema's finish_reason, which

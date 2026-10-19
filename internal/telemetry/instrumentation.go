@@ -49,7 +49,10 @@ func InstrumentInvocation(ctx context.Context, root AgentLike, sessionID string,
 }
 
 // InstrumentGenerateContent wraps a model call in its span and log records.
-// The span ends before the final response or error is yielded.
+// The span ends before the response that ends the call is yielded: an error,
+// a response reporting a finish reason, or the one response of a call that is
+// not streamed. The legacy schema ends it at the first response not marked
+// partial instead.
 func InstrumentGenerateContent[T any](ctx context.Context, params GenerateContentParams, response func(T) (*model.LLMResponse, string), call func(context.Context) iter.Seq2[T, error]) iter.Seq2[T, error] {
 	return func(yield func(T, error) bool) {
 		ctx, span := startGenerateContentSpan(ctx, params)
@@ -70,14 +73,33 @@ func InstrumentGenerateContent[T any](ctx context.Context, params GenerateConten
 			span.End()
 		}
 		defer end()
+		legacy := useLegacySchema()
 		for v, err := range call(ctx) {
 			resp, eventID := response(v)
-			result = generateContentResult{Response: resp, EventID: eventID, Error: err}
-			if err != nil {
-				end()
-			} else if !resp.Partial {
-				logResponse(ctx, resp, params.Backend)
-				end()
+			switch {
+			case legacy:
+				result = generateContentResult{Response: resp, EventID: eventID, Error: err}
+				if err != nil {
+					end()
+				} else if !resp.Partial {
+					logResponse(ctx, resp, params.Backend)
+					end()
+				}
+			case ended || (resp == nil && err == nil):
+				// After the end, what an aggregator assembles from the chunks
+				// already recorded.
+			default:
+				result.Error = err
+				if resp != nil {
+					result.Response, result.EventID = resp, eventID
+					result.Responses = append(result.Responses, resp)
+				}
+				// Partial is set by ADK's aggregator rather than the model, and a
+				// model.LLM may leave it unset; the finish reason comes from the
+				// model, as in adk-python's _instrumentation.py.
+				if err != nil || reportedFinishReason(resp, nil) != "" || !params.Stream {
+					end()
+				}
 			}
 			if !yield(v, err) {
 				return

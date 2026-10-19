@@ -1087,6 +1087,7 @@ func generateContent(ctx agent.InvocationContext, m model.LLM, req *model.LLMReq
 		InvocationID: ctx.InvocationID(),
 		Request:      req,
 		Backend:      googlellm.GetGoogleLLMVariant(m),
+		Stream:       useStream,
 	}
 	response := func(r *responseWithEventID) (*model.LLMResponse, string) { return r.LLMResponse, r.eventID }
 	return telemetry.InstrumentGenerateContent(ctx, params, response, func(spanCtx context.Context) iter.Seq2[*responseWithEventID, error] {

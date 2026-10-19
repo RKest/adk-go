@@ -804,7 +804,7 @@ func TestInferenceDetailsPartsMatchWebUI(t *testing.T) {
 		}}, map[string]any{"role": "tool", "parts": []any{
 			map[string]any{"type": "tool_call_response", "name": "f", "response": map[string]any{"value": "<unserializable>"}},
 		}}},
-		"gen_ai.output.messages": []any{map[string]any{"role": "assistant", "finish_reason": "tool_call", "parts": []any{
+		"gen_ai.output.messages": []any{map[string]any{"role": "assistant", "finish_reason": "", "parts": []any{
 			map[string]any{"type": "text", "content": "thinking"},
 			map[string]any{"type": "tool_call", "name": "f", "arguments": map[string]any{"value": "<unserializable>"}},
 			map[string]any{"type": "tool_call", "name": "g", "arguments": nil},

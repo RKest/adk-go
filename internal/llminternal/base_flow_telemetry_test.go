@@ -72,29 +72,29 @@ func TestGenerateContentTracing(t *testing.T) {
 		name: "test-model",
 		generateContent: func(ctx context.Context, req *model.LLMRequest, stream bool) iter.Seq2[*model.LLMResponse, error] {
 			return func(yield func(*model.LLMResponse, error) bool) {
-				// Yield partial response.
+				// A chunk from a model with no aggregator: Partial unset, no
+				// finish reason yet.
 				if !yield(&model.LLMResponse{
 					UsageMetadata: &genai.GenerateContentResponseUsageMetadata{
 						PromptTokenCount:     1,
 						CandidatesTokenCount: 2,
 					},
-					Partial: true,
 				}, nil) {
 					return
 				}
 				// Verify span NOT ended.
 				gotSpans := testExporter.GetSpans()
 				if len(gotSpans) != 0 {
-					t.Errorf("expected 0 spans after partial response, got %d", len(gotSpans))
+					t.Errorf("expected 0 spans after a chunk with no finish reason, got %d", len(gotSpans))
 				}
 
-				// Yield final response.
+				// The chunk that reports why generation stopped.
 				if !yield(&model.LLMResponse{
 					UsageMetadata: &genai.GenerateContentResponseUsageMetadata{
 						PromptTokenCount:     10,
 						CandidatesTokenCount: 20,
 					},
-					Partial: false,
+					FinishReason: genai.FinishReasonStop,
 				}, nil) {
 					return
 				}

@@ -20,8 +20,10 @@ import (
 	"iter"
 	"testing"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
+	semconv "go.opentelemetry.io/otel/semconv/v1.36.0"
 	"google.golang.org/genai"
 
 	"google.golang.org/adk/v2/model"
@@ -88,19 +90,61 @@ func TestInstrumentGenerateContent_EarlyStop(t *testing.T) {
 			_ = yield(partial, nil) && yield(final, nil)
 		}
 	}
-	params := GenerateContentParams{ModelName: "m", Request: &model.LLMRequest{}}
+	params := GenerateContentParams{ModelName: "m", Request: &model.LLMRequest{}, Stream: true}
 
 	for range InstrumentGenerateContent(t.Context(), params, func(r *model.LLMResponse) (*model.LLMResponse, string) { return r, "" }, call) {
 		break
 	}
 
 	if got := len(spans.GetSpans()); got != 1 {
-		t.Errorf("got %d ended spans, want 1", got)
+		t.Fatalf("got %d ended spans, want 1", got)
 	}
 	if got := len(logs.records); got != 1 {
 		t.Fatalf("got %d log records, want 1", got)
 	}
 	if got := logs.records[0].Severity(); got != log.SeverityDebug {
 		t.Errorf("severity = %v, want %v", got, log.SeverityDebug)
+	}
+	// An abandoned stream reported no finish reason, so none is published.
+	for _, kv := range spans.GetSpans()[0].Attributes {
+		if kv.Key == semconv.GenAIResponseFinishReasonsKey {
+			t.Errorf("span finish reasons = %v, want none", kv.Value.Emit())
+		}
+	}
+	logs.records[0].WalkAttributes(func(kv attribute.KeyValue) bool {
+		if kv.Key == semconv.GenAIResponseFinishReasonsKey {
+			t.Errorf("event finish reasons = %v, want none", kv.Value.Emit())
+		}
+		return true
+	})
+}
+
+// A stream may report usage on one chunk and the finish reason on another, and
+// an aggregate arriving after the end is not part of the record.
+func TestInstrumentGenerateContent_UsageFromLatestReport(t *testing.T) {
+	t.Setenv(adkTelemetrySchemaVersionOptIn, "otel_semconv_1_44")
+	spans := setupTestTracer(t)
+	usage := func(n int32) *genai.GenerateContentResponseUsageMetadata {
+		return &genai.GenerateContentResponseUsageMetadata{PromptTokenCount: n}
+	}
+	call := func(context.Context) iter.Seq2[*model.LLMResponse, error] {
+		return func(yield func(*model.LLMResponse, error) bool) {
+			_ = yield(&model.LLMResponse{UsageMetadata: usage(10), Partial: true}, nil) &&
+				yield(&model.LLMResponse{FinishReason: genai.FinishReasonStop, Partial: true}, nil) &&
+				yield(&model.LLMResponse{UsageMetadata: usage(99), FinishReason: genai.FinishReasonStop}, nil)
+		}
+	}
+	params := GenerateContentParams{ModelName: "m", Request: &model.LLMRequest{}, Stream: true}
+	for range InstrumentGenerateContent(t.Context(), params, func(r *model.LLMResponse) (*model.LLMResponse, string) { return r, "" }, call) {
+	}
+
+	var got int64
+	for _, kv := range spans.GetSpans()[0].Attributes {
+		if kv.Key == semconv.GenAIUsageInputTokensKey {
+			got = kv.Value.AsInt64()
+		}
+	}
+	if got != 10 {
+		t.Errorf("input tokens = %d, want 10", got)
 	}
 }

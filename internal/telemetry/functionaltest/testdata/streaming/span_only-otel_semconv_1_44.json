@@ -38,10 +38,20 @@
               "gen_ai.operation.name": "generate_content",
               "gen_ai.output.messages": [
                 {
+                  "finish_reason": "",
+                  "parts": [
+                    {
+                      "content": "text ",
+                      "type": "text"
+                    }
+                  ],
+                  "role": "assistant"
+                },
+                {
                   "finish_reason": "stop",
                   "parts": [
                     {
-                      "content": "text response",
+                      "content": "response",
                       "type": "text"
                     }
                   ],

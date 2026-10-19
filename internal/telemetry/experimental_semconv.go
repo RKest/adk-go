@@ -85,7 +85,7 @@ func (d *operationDetails) emit(ctx context.Context, params GenerateContentParam
 	attrs = append(attrs, generateContentResultAttributes(result)...)
 	if getGenAICaptureMessageContent() {
 		attrs = append(attrs, d.eventRequest...)
-		attrs = append(attrs, eventContentAttributes(responseContent(result.Response, result.Error))...)
+		attrs = append(attrs, eventContentAttributes(responseContent(result))...)
 	}
 	record := log.Record{}
 	record.SetEventName(inferenceOperationDetailsEventName)

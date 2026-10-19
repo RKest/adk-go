@@ -391,6 +391,16 @@ func TestTraceGenerateContentResult_MapsFinishReason(t *testing.T) {
 			want:     "length",
 		},
 		{
+			name:        "unreported",
+			response:    &model.LLMResponse{Content: genai.NewContentFromText("mid-stream", genai.RoleModel)},
+			wantMissing: true,
+		},
+		{
+			name:        "unspecified",
+			response:    &model.LLMResponse{FinishReason: genai.FinishReasonUnspecified},
+			wantMissing: true,
+		},
+		{
 			name:     "safety error code",
 			response: &model.LLMResponse{FinishReason: genai.FinishReasonSafety, ErrorCode: "SAFETY"},
 			want:     "error",
