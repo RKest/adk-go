@@ -201,7 +201,8 @@ func (m *MockModel) Generate(ctx context.Context, req *model.LLMRequest) (*model
 	}
 
 	resp := &model.LLMResponse{
-		Content: m.Responses[0],
+		Content:      m.Responses[0],
+		FinishReason: genai.FinishReasonStop,
 	}
 
 	m.Responses = m.Responses[1:]

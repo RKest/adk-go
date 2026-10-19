@@ -58,7 +58,7 @@
                   "gen_ai.operation.name": "generate_content",
                   "gen_ai.output.messages": [
                     {
-                      "finish_reason": "",
+                      "finish_reason": "stop",
                       "parts": [
                         {
                           "content": "task complete",
@@ -69,6 +69,9 @@
                     }
                   ],
                   "gen_ai.request.model": "mock",
+                  "gen_ai.response.finish_reasons": [
+                    "stop"
+                  ],
                   "gen_ai.system_instructions": [
                     {
                       "content": "you are helpful\n\nYou are an agent. Your internal name is \"task_agent\". The description about you is \"collaborative task_agent\".\n\n\nDo NOT call 'finish_task' prematurely. Use your available tools to\nfully complete every aspect of the delegated task first. If the\ntask is unclear, ask the user for clarification before proceeding.\nOnce the task is fully complete, call 'finish_task' by itself with\nno accompanying text output.\n",
@@ -99,7 +102,7 @@
                       "gen_ai.operation.name": "generate_content",
                       "gen_ai.output.messages": [
                         {
-                          "finish_reason": "",
+                          "finish_reason": "stop",
                           "parts": [
                             {
                               "content": "task complete",
@@ -110,6 +113,9 @@
                         }
                       ],
                       "gen_ai.request.model": "mock",
+                      "gen_ai.response.finish_reasons": [
+                        "stop"
+                      ],
                       "gen_ai.system_instructions": [
                         {
                           "content": "you are helpful\n\nYou are an agent. Your internal name is \"task_agent\". The description about you is \"collaborative task_agent\".\n\n\nDo NOT call 'finish_task' prematurely. Use your available tools to\nfully complete every aspect of the delegated task first. If the\ntask is unclear, ask the user for clarification before proceeding.\nOnce the task is fully complete, call 'finish_task' by itself with\nno accompanying text output.\n",
@@ -153,7 +159,7 @@
                   "gen_ai.operation.name": "generate_content",
                   "gen_ai.output.messages": [
                     {
-                      "finish_reason": "",
+                      "finish_reason": "stop",
                       "parts": [
                         {
                           "content": "single turn complete",
@@ -164,6 +170,9 @@
                     }
                   ],
                   "gen_ai.request.model": "mock",
+                  "gen_ai.response.finish_reasons": [
+                    "stop"
+                  ],
                   "gen_ai.system_instructions": [
                     {
                       "content": "you are helpful",
@@ -194,7 +203,7 @@
                       "gen_ai.operation.name": "generate_content",
                       "gen_ai.output.messages": [
                         {
-                          "finish_reason": "",
+                          "finish_reason": "stop",
                           "parts": [
                             {
                               "content": "single turn complete",
@@ -205,6 +214,9 @@
                         }
                       ],
                       "gen_ai.request.model": "mock",
+                      "gen_ai.response.finish_reasons": [
+                        "stop"
+                      ],
                       "gen_ai.system_instructions": [
                         {
                           "content": "you are helpful",

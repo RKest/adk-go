@@ -25,7 +25,10 @@
               "gcp.vertex.agent.event_id": "PRESENT",
               "gcp.vertex.agent.invocation_id": "PRESENT",
               "gen_ai.operation.name": "generate_content",
-              "gen_ai.request.model": "mock"
+              "gen_ai.request.model": "mock",
+              "gen_ai.response.finish_reasons": [
+                "tool_call"
+              ]
             },
             "status": "UNSET",
             "children": [],
@@ -37,7 +40,10 @@
                   "gcp.vertex.agent.event_id": "PRESENT",
                   "gcp.vertex.agent.invocation_id": "PRESENT",
                   "gen_ai.operation.name": "generate_content",
-                  "gen_ai.request.model": "mock"
+                  "gen_ai.request.model": "mock",
+                  "gen_ai.response.finish_reasons": [
+                    "tool_call"
+                  ]
                 }
               }
             ]
@@ -62,7 +68,10 @@
               "gcp.vertex.agent.event_id": "PRESENT",
               "gcp.vertex.agent.invocation_id": "PRESENT",
               "gen_ai.operation.name": "generate_content",
-              "gen_ai.request.model": "mock"
+              "gen_ai.request.model": "mock",
+              "gen_ai.response.finish_reasons": [
+                "stop"
+              ]
             },
             "status": "UNSET",
             "children": [],
@@ -74,7 +83,10 @@
                   "gcp.vertex.agent.event_id": "PRESENT",
                   "gcp.vertex.agent.invocation_id": "PRESENT",
                   "gen_ai.operation.name": "generate_content",
-                  "gen_ai.request.model": "mock"
+                  "gen_ai.request.model": "mock",
+                  "gen_ai.response.finish_reasons": [
+                    "stop"
+                  ]
                 }
               }
             ]
